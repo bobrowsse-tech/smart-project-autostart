@@ -12,7 +12,7 @@ function workspaceRoot(): string | undefined {
 function createService(context: vscode.ExtensionContext): AutostartService | undefined {
   const root = workspaceRoot();
   if (!root) {
-    vscode.window.showErrorMessage('Project Autostart needs an open workspace folder.');
+    vscode.window.showErrorMessage('Smart Project Autostart needs an open workspace folder.');
     return undefined;
   }
   return new AutostartService(
@@ -25,12 +25,12 @@ function createService(context: vscode.ExtensionContext): AutostartService | und
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  const output = vscode.window.createOutputChannel('Project Autostart');
+  const output = vscode.window.createOutputChannel('Smart Project Autostart');
   context.subscriptions.push(output);
 
   const dashboard = new DashboardProvider();
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('project-autostartView', dashboard)
+    vscode.window.registerWebviewViewProvider('smart-project-autostartView', dashboard)
   );
 
   const log = (serviceId: string, line: string) => {
@@ -54,12 +54,12 @@ export function activate(context: vscode.ExtensionContext) {
         dashboard.showScanResult(result);
         dashboard.setSummary(service.formatScanReport(result).split('\n')[0]);
         vscode.window.showInformationMessage(
-          `Project Autostart: ${result.runbook.services.length} service(s) planned.`
+          `Smart Project Autostart: ${result.runbook.services.length} service(s) planned.`
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         dashboard.setSummary(`Scan failed: ${msg}`);
-        vscode.window.showErrorMessage(`Project Autostart scan failed: ${msg}`);
+        vscode.window.showErrorMessage(`Smart Project Autostart scan failed: ${msg}`);
       }
     })
   );
@@ -80,13 +80,13 @@ export function activate(context: vscode.ExtensionContext) {
         } else {
           dashboard.setSummary(`Started ${result.started.length} service(s).`);
           vscode.window.showInformationMessage(
-            `Project Autostart: started ${result.started.join(', ') || 'nothing'}.`
+            `Smart Project Autostart: started ${result.started.join(', ') || 'nothing'}.`
           );
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         dashboard.setSummary(`Start failed: ${msg}`);
-        vscode.window.showErrorMessage(`Project Autostart start failed: ${msg}`);
+        vscode.window.showErrorMessage(`Smart Project Autostart start failed: ${msg}`);
       }
     })
   );
@@ -103,12 +103,12 @@ export function activate(context: vscode.ExtensionContext) {
         const result = await service.stop(log, onStatus);
         dashboard.setSummary(`Stopped ${result.stopped.length} service(s).`);
         vscode.window.showInformationMessage(
-          `Project Autostart: stopped ${result.stopped.join(', ') || 'nothing'}.`
+          `Smart Project Autostart: stopped ${result.stopped.join(', ') || 'nothing'}.`
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         dashboard.setSummary(`Stop failed: ${msg}`);
-        vscode.window.showErrorMessage(`Project Autostart stop failed: ${msg}`);
+        vscode.window.showErrorMessage(`Smart Project Autostart stop failed: ${msg}`);
       }
     })
   );
@@ -123,7 +123,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('projectAutostart.editRunbook', async () => {
       const root = workspaceRoot();
       if (!root) {
-        vscode.window.showErrorMessage('Project Autostart needs an open workspace folder.');
+        vscode.window.showErrorMessage('Smart Project Autostart needs an open workspace folder.');
         return;
       }
       const uri = vscode.Uri.file(`${root}/${RUNBOOK_FILENAME}`);

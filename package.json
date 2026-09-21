@@ -1,8 +1,8 @@
 {
-  "name": "project-autostart",
-  "displayName": "Project Autostart",
+  "name": "smart-project-autostart",
+  "displayName": "Smart Project Autostart",
   "description": "Infers how to start and stop an unfamiliar repo and runs it with one click.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "bobrowsse-tech",
   "engines": {
     "vscode": "^1.95.0"
@@ -16,16 +16,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "project-autostartContainer",
-          "title": "Project Autostart",
+          "id": "smart-project-autostartContainer",
+          "title": "Smart Project Autostart",
           "icon": "$(play-circle)"
         }
       ]
     },
     "views": {
-      "project-autostartContainer": [
+      "smart-project-autostartContainer": [
         {
-          "id": "project-autostartView",
+          "id": "smart-project-autostartView",
           "name": "Dashboard",
           "type": "webview"
         }
@@ -34,33 +34,33 @@
     "commands": [
       {
         "command": "projectAutostart.scan",
-        "title": "Project Autostart: Scan & Generate Plan"
+        "title": "Smart Project Autostart: Scan & Generate Plan"
       },
       {
         "command": "projectAutostart.start",
-        "title": "Project Autostart: Start Project"
+        "title": "Smart Project Autostart: Start Project"
       },
       {
         "command": "projectAutostart.stop",
-        "title": "Project Autostart: Stop Project"
+        "title": "Smart Project Autostart: Stop Project"
       },
       {
         "command": "projectAutostart.viewLogs",
-        "title": "Project Autostart: View Logs"
+        "title": "Smart Project Autostart: View Logs"
       },
       {
         "command": "projectAutostart.editRunbook",
-        "title": "Project Autostart: Edit Runbook"
+        "title": "Smart Project Autostart: Edit Runbook"
       }
     ],
     "languageModelTools": [
       {
         "name": "project_autostart_run",
         "tags": [
-          "project-autostart"
+          "smart-project-autostart"
         ],
         "toolReferenceName": "project_autostart_run",
-        "displayName": "Project Autostart — project_autostart_run",
+        "displayName": "Smart Project Autostart — project_autostart_run",
         "modelDescription": "Starts or stops the current workspace's local development stack using the inferred or saved runbook. Use this when the user asks to run, start, boot up, or stop the project.",
         "canBeReferencedInPrompt": true,
         "inputSchema": {
@@ -114,7 +114,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bobrowsse-tech/project-autostart"
+    "url": "https://github.com/bobrowsse-tech/smart-project-autostart"
   },
   "icon": "images/icon.png",
   "galleryBanner": {
@@ -129,8 +129,8 @@
     "onboarding",
     "productivity"
   ],
-  "homepage": "https://github.com/bobrowsse-tech/project-autostart#readme",
+  "homepage": "https://github.com/bobrowsse-tech/smart-project-autostart#readme",
   "bugs": {
-    "url": "https://github.com/bobrowsse-tech/project-autostart/issues"
+    "url": "https://github.com/bobrowsse-tech/smart-project-autostart/issues"
   }
 }
