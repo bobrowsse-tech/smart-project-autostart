@@ -1,23 +1,23 @@
-# Project Autostart
+# Smart Project Autostart
 
 Infers how to start and stop an unfamiliar repo and runs it with one click — npm scripts, Docker Compose, Procfile, Python, and Makefile targets.
 
 ## Install
 
 ```bash
-git clone https://github.com/bobrowsse-tech/project-autostart.git
-cd project-autostart
+git clone https://github.com/bobrowsse-tech/smart-project-autostart.git
+cd smart-project-autostart
 npm install
 npm run package
 npx @vscode/vsce package --no-dependencies
-code --install-extension project-autostart-0.1.0.vsix
+code --install-extension smart-project-autostart-0.1.0.vsix
 ```
 
 Or press **F5** in VS Code / Cursor after `npm install` to launch an Extension Development Host.
 
 ## Use
 
-Open a workspace, then open the **Project Autostart** activity-bar panel:
+Open a workspace, then open the **Smart Project Autostart** activity-bar panel:
 
 | Action | What it does |
 |---|---|
@@ -50,4 +50,4 @@ Changes to `main` must go through a pull request. See [CONTRIBUTING.md](./CONTRI
 
 ### Extension Development Host
 
-With the local suite umbrella checked out, press **F5** (**Extension + playground**) to load `../playgrounds/project-autostart/` as the test workspace.
+With the local suite umbrella checked out, press **F5** (**Extension + playground**) to load `../playgrounds/smart-project-autostart/` as the test workspace.
