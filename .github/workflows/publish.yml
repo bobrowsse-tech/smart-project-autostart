@@ -1,0 +1,98 @@
+name: Publish Extension
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm run test:unit --if-present
+
+      - name: Build
+        run: npm run package
+
+      - name: Package VSIX
+        run: npx --yes @vscode/vsce package --no-dependencies -o extension.vsix
+
+      - name: Gate on Marketplace version
+        id: gate
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          PUB=$(node -p "require('./package.json').publisher")
+          NAME=$(node -p "require('./package.json').name")
+          ID="${PUB}.${NAME}"
+          {
+            echo "version=${VERSION}"
+            echo "id=${ID}"
+          } >> "$GITHUB_OUTPUT"
+          LIVE=$(curl -sS "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json;api-version=7.1-preview.1" \
+            -d "{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"${ID}\"}]}],\"flags\":914}" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{const j=JSON.parse(s);const e=j.results?.[0]?.extensions?.[0];process.stdout.write(e?.versions?.[0]?.version||'')}catch{process.stdout.write('')}})")
+          echo "marketplace_latest=${LIVE}"
+          if [ "${LIVE}" = "${VERSION}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} already on Marketplace — skipping publish"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Will publish ${ID}@${VERSION} (marketplace has '${LIVE:-none}')"
+          fi
+
+      - name: Publish to Visual Studio Marketplace
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then echo "Missing repo secret VSCE_PAT"; exit 1; fi
+          npx --yes @vscode/vsce publish --packagePath extension.vsix --pat "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then echo "Missing repo secret OVSX_PAT"; exit 1; fi
+          npx --yes ovsx publish extension.vsix --pat "$OVSX_PAT"
+
+      - name: Tag release v*
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.gate.outputs.version }}
+        run: |
+          TAG="v${VERSION}"
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"

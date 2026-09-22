@@ -20,19 +20,15 @@
    ```
 
 Force-pushes and deleting `main` are blocked. Approvals are not required (solo-friendly), but every change still goes through a PR for reviewable history.
-
 ## Releasing / versioning
 
-Ship Marketplace + Open VSX updates only from merged `main`:
+Ship Marketplace + Open VSX updates from protected `main` via GitHub Actions:
 
-1. Open a PR that bumps `version` in `package.json` (semver: patch for fixes, minor for features).
+1. Open a PR that bumps `version` in `package.json` (semver: patch for fixes, minor for features) along with your changes.
 2. Merge the PR (direct pushes to `main` are blocked).
-3. From a clean, up-to-date `main`:
-   ```bash
-   npm ci
-   npm run package
-   npx @vscode/vsce publish
-   npx ovsx publish -p "$OVSX_PAT"
-   ```
-4. Never commit PATs. Keep them in a local gitignored `.env.publish` or CI secrets.
-
+3. The **Publish Extension** workflow runs when `package.json` changes on `main`:
+   - Builds the VSIX, publishes to Visual Studio Marketplace and Open VSX
+   - Skips if that exact version is already on the Marketplace
+   - Creates git tag `vX.Y.Z` after a successful publish
+4. Manual re-run: **Actions → Publish Extension → Run workflow**
+5. Never commit PATs — store them as repo Actions secrets `VSCE_PAT` and `OVSX_PAT`
