@@ -10,7 +10,7 @@ cd smart-project-autostart
 npm install
 npm run package
 npx @vscode/vsce package --no-dependencies
-code --install-extension smart-project-autostart-0.1.0.vsix
+code --install-extension smart-project-autostart-0.1.2.vsix
 ```
 
 Or press **F5** in VS Code / Cursor after `npm install` to launch an Extension Development Host.
@@ -39,6 +39,10 @@ npm run watch      # esbuild + tsc
 npm run test:unit  # Node test runner via tsx
 npm run package    # production bundle
 ```
+
+## Author
+
+[Bob Rowsse Walakira](https://bobrowsse.com) — [hello@bobrowsse.com](mailto:hello@bobrowsse.com)
 
 ## License
 

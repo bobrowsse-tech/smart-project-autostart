@@ -2,8 +2,13 @@
   "name": "smart-project-autostart",
   "displayName": "Smart Project Autostart",
   "description": "Infers how to start and stop an unfamiliar repo and runs it with one click.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "bobrowsse-tech",
+  "author": {
+    "name": "Bob Rowsse Walakira",
+    "email": "hello@bobrowsse.com",
+    "url": "https://bobrowsse.com"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -131,6 +136,7 @@
   ],
   "homepage": "https://github.com/bobrowsse-tech/smart-project-autostart#readme",
   "bugs": {
-    "url": "https://github.com/bobrowsse-tech/smart-project-autostart/issues"
+    "url": "https://github.com/bobrowsse-tech/smart-project-autostart/issues",
+    "email": "hello@bobrowsse.com"
   }
 }
