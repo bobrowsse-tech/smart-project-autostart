@@ -13,10 +13,12 @@ concurrency:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: open-vsx
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,11 +78,7 @@ jobs:
 
       - name: Publish to Open VSX
         if: steps.gate.outputs.skip != 'true'
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: |
-          if [ -z "$OVSX_PAT" ]; then echo "Missing repo secret OVSX_PAT"; exit 1; fi
-          npx --yes ovsx publish extension.vsix --pat "$OVSX_PAT"
+        run: npx --yes ovsx publish extension.vsix --trusted-publishing
 
       - name: Tag release v*
         if: steps.gate.outputs.skip != 'true'
