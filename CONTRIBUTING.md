@@ -31,4 +31,4 @@ Ship Marketplace + Open VSX updates from protected `main` via GitHub Actions:
    - Skips if that exact version is already on the Marketplace
    - Creates git tag `vX.Y.Z` after a successful publish
 4. Manual re-run: **Actions → Publish Extension → Run workflow**
-5. Never commit PATs — store them as repo Actions secrets `VSCE_PAT` and `OVSX_PAT`
+5. Never commit PATs — store `VSCE_PAT` as a repo Actions secret. Open VSX publish uses GitHub Actions trusted publishing (OIDC) rather than an `OVSX_PAT` secret.
