@@ -22,7 +22,13 @@ export {
   scanAndPersist,
   writeRunbook,
 } from './runbook';
-export { startRunbook, stopRunbook } from './executor';
+export {
+  clearLiveChildren,
+  composeStopCommand,
+  killProcessGroup,
+  startRunbook,
+  stopRunbook,
+} from './executor';
 export { isPortInUse, waitForHealth } from './health';
 
 import { fingerprintRepo } from './fingerprint';
@@ -56,13 +62,19 @@ export class AutostartService {
   }
 
   async start(log: LogFn, onStatus: StatusFn): Promise<StartResult> {
-    const runbook = readRunbook(this.root);
+    // One-click start: infer and save a runbook when none exists yet.
+    let runbook = readRunbook(this.root);
+    if (!runbook || runbook.services.length === 0) {
+      this.scan();
+      runbook = readRunbook(this.root);
+    }
     if (!runbook || runbook.services.length === 0) {
       return {
         started: [],
         failed: {
           serviceId: '(none)',
-          reason: 'No runbook found. Run Scan & Generate Plan first.',
+          reason:
+            'Could not detect how to run this project. Looked for Docker Compose, a package.json dev/start/serve script, a Procfile, Python, and a Makefile.',
         },
       };
     }

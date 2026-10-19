@@ -2,7 +2,7 @@
   "name": "smart-project-autostart",
   "displayName": "Smart Project Autostart",
   "description": "Infers how to start and stop an unfamiliar repo and runs it with one click.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "publisher": "bobrowsse-tech",
   "author": {
     "name": "Bob Rowsse Walakira",
@@ -113,7 +113,6 @@
   "dependencies": {
     "ignore": "^7.0.9",
     "toml": "^5.0.0",
-    "tree-kill": "^1.2.2",
     "yaml": "^2.9.1"
   },
   "license": "MIT",

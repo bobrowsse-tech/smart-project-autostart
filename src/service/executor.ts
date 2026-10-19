@@ -1,6 +1,5 @@
 import { spawn, type ChildProcess } from 'child_process';
 import * as path from 'path';
-import treeKill from 'tree-kill';
 import type { Runbook, RunbookService, StartResult, StopResult, TrackedProcess } from './types';
 import { isPortInUse, waitForHealth } from './health';
 
@@ -11,27 +10,98 @@ export interface ExecutorState {
   processes: TrackedProcess[];
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/** Live children for the current Extension Host session (not persisted across restarts). */
+const liveChildren = new Map<string, ChildProcess>();
+
+/**
+ * Kill a shell-spawned service by process group (POSIX) or taskkill tree (Windows).
+ *
+ * `shell: true` means the tracked PID is often the shell, not `node server.js`.
+ * Without a group/tree kill, stop flips status to stopped while the real
+ * server keeps the port. Detached spawn on POSIX makes the child its own
+ * process-group leader so `-pid` signals the whole tree.
+ */
+export async function killProcessGroup(
+  pid: number,
+  log: LogFn,
+  serviceId: string,
+  child?: ChildProcess
+): Promise<void> {
+  if (process.platform === 'win32') {
+    log(serviceId, `taskkill /t tree for pid ${pid}`);
+    await new Promise<void>((resolve) => {
+      const killer = spawn('taskkill', ['/pid', String(pid), '/t', '/f'], {
+        stdio: 'ignore',
+      });
+      killer.on('exit', () => resolve());
+      killer.on('error', () => resolve());
+    });
+    return;
+  }
+
+  log(serviceId, `SIGTERM process group -${pid}`);
+  trySignalGroup(pid, 'SIGTERM');
+
+  const exited = await waitForPidExit(pid, child, 5000);
+  if (!exited) {
+    log(serviceId, `Grace period elapsed — SIGKILL process group -${pid}`);
+    trySignalGroup(pid, 'SIGKILL');
+    await waitForPidExit(pid, child, 2000);
+  }
 }
 
-function killTree(pid: number, signal: NodeJS.Signals = 'SIGTERM'): Promise<void> {
+function trySignalGroup(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // ESRCH / already gone
+  }
+}
+
+function waitForPidExit(pid: number, child: ChildProcess | undefined, ms: number): Promise<boolean> {
   return new Promise((resolve) => {
-    treeKill(pid, signal, () => resolve());
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      clearInterval(poll);
+      if (child) {
+        child.removeListener('exit', onExit);
+      }
+      resolve(ok);
+    };
+
+    const onExit = () => finish(true);
+    const timer = setTimeout(() => finish(false), ms);
+    const poll = setInterval(() => {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        finish(true);
+      }
+    }, 100);
+
+    if (child && child.exitCode === null) {
+      child.once('exit', onExit);
+    } else if (child && child.exitCode !== null) {
+      finish(true);
+    }
   });
 }
 
-async function stopPid(pid: number, log: LogFn, serviceId: string): Promise<void> {
-  log(serviceId, `Sending SIGTERM to pid ${pid}`);
-  await killTree(pid, 'SIGTERM');
-  await sleep(5000);
-  try {
-    process.kill(pid, 0);
-    log(serviceId, `Grace period elapsed — SIGKILL pid ${pid}`);
-    await killTree(pid, 'SIGKILL');
-  } catch {
-    // already gone
+/**
+ * Turn a compose `up -d` start command into a per-service `stop`.
+ * Avoids `docker compose down`, which tears down the whole stack on the first service.
+ */
+export function composeStopCommand(startCommand: string, composeService: string): string {
+  const match = startCommand.match(/^(docker\s+compose\b.*?)\s+up\s+-d\s+(\S+)/i);
+  if (match) {
+    return `${match[1]} stop ${match[2]}`;
   }
+  return `docker compose stop ${composeService}`;
 }
 
 function spawnService(
@@ -45,6 +115,8 @@ function spawnService(
     shell: true,
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],
+    // POSIX: process-group leader so stop can signal -pid. No effect on Windows.
+    detached: process.platform !== 'win32',
   });
 
   const onData = (buf: Buffer) => {
@@ -57,6 +129,12 @@ function spawnService(
   };
   child.stdout?.on('data', onData);
   child.stderr?.on('data', onData);
+
+  child.on('exit', () => {
+    liveChildren.delete(svc.id);
+  });
+
+  liveChildren.set(svc.id, child);
 
   return {
     child,
@@ -86,7 +164,6 @@ export async function startRunbook(
   for (const svc of runbook.services) {
     onStatus(svc.id, 'starting');
 
-    // Detect ports already in use before start.
     for (const port of extractPorts(svc)) {
       if (await isPortInUse(port)) {
         const reason = `Port ${port} is already in use before starting ${svc.id}. Stop the stale process or edit the runbook.`;
@@ -111,8 +188,9 @@ export async function startRunbook(
       onStatus(svc.id, 'failed', reason);
       log(svc.id, reason);
       if (tracked.pid) {
-        await stopPid(tracked.pid, log, svc.id);
+        await killProcessGroup(tracked.pid, log, svc.id, liveChildren.get(svc.id));
       }
+      liveChildren.delete(svc.id);
       return {
         result: { started, failed: { serviceId: svc.id, reason } },
         processes: processes.filter((p) => p.serviceId !== svc.id),
@@ -150,6 +228,7 @@ function extractPorts(svc: RunbookService): number[] {
 
 /**
  * Stop tracked processes in reverse start order.
+ * Compose services are stopped individually (`stop <name>`), not `down`.
  */
 export async function stopRunbook(
   root: string,
@@ -162,6 +241,7 @@ export async function stopRunbook(
     ? [...runbook.services].map((s) => s.id).reverse()
     : [...new Set(processes.map((p) => p.serviceId))].reverse();
 
+  const byId = new Map(runbook?.services.map((s) => [s.id, s]) ?? []);
   const stopped: string[] = [];
   const remaining = [...processes];
 
@@ -171,11 +251,15 @@ export async function stopRunbook(
       continue;
     }
     onStatus(id, 'stopping');
+    const svc = byId.get(id);
+
     for (const t of tracked) {
-      if (t.composeProject) {
-        log(id, 'docker compose down (service teardown)');
+      const composeName = t.composeProject || svc?.composeService;
+      if (composeName) {
+        const cmd = composeStopCommand(svc?.command ?? '', composeName);
+        log(id, `$ ${cmd}`);
         await new Promise<void>((resolve) => {
-          const child = spawn('docker compose down', {
+          const child = spawn(cmd, {
             cwd: root,
             shell: true,
             stdio: ['ignore', 'pipe', 'pipe'],
@@ -184,9 +268,11 @@ export async function stopRunbook(
           child.on('error', () => resolve());
         });
       } else if (t.pid) {
-        await stopPid(t.pid, log, id);
+        await killProcessGroup(t.pid, log, id, liveChildren.get(id));
       }
     }
+
+    liveChildren.delete(id);
     for (let i = remaining.length - 1; i >= 0; i--) {
       if (remaining[i].serviceId === id) {
         remaining.splice(i, 1);
@@ -197,4 +283,9 @@ export async function stopRunbook(
   }
 
   return { result: { stopped }, processes: remaining };
+}
+
+/** Test helper: clear in-memory child handles. */
+export function clearLiveChildren(): void {
+  liveChildren.clear();
 }

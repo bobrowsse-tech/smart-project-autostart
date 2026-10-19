@@ -1,6 +1,16 @@
 # Smart Project Autostart
 
-Infers how to start and stop an unfamiliar repo and runs it with one click — npm scripts, Docker Compose, Procfile, Python, and Makefile targets.
+Infers how to start and stop an unfamiliar repo and runs it with one click — npm/pnpm/yarn scripts, Docker Compose, Procfile, Python, and Makefile targets.
+
+## What it does (v0.2.0)
+
+Open a workspace, then use the **Smart Project Autostart** sidebar (or the command palette):
+
+1. **Scan & Generate Plan** fingerprints the repo — Compose services (with `depends_on` / ports), package scripts (`dev` / `start` / `serve`, using the lockfile’s package manager), Procfile, Python, and Makefile targets — and writes a dependency-ordered `.runbook.json`.
+2. **Start Project** runs each service in order, polling tcp/http health checks (or an explicit grace wait when no port is published) before starting dependents. If there is no runbook yet, Start scans first.
+3. **Stop Project** tears down in reverse order: process-group kill for shell-spawned apps (so `npm run dev` actually releases its port), and `docker compose stop <service>` per Compose service — not a full `down` on the first one.
+
+Agents (Copilot Chat, Claude Code, etc.) can call the Language Model Tool `project_autostart_run` with `scan`, `start`, `stop`, or `status`. Start/stop stay behind explicit user or tool actions; scan/status are report-friendly for agents.
 
 ## Install
 
@@ -10,23 +20,16 @@ cd smart-project-autostart
 npm install
 npm run package
 npx @vscode/vsce package --no-dependencies
-code --install-extension smart-project-autostart-0.1.2.vsix
+code --install-extension smart-project-autostart-0.2.0.vsix
 ```
 
 Or press **F5** in VS Code / Cursor after `npm install` to launch an Extension Development Host.
 
-## Use
+## Known limits
 
-Open a workspace, then open the **Smart Project Autostart** activity-bar panel:
-
-| Action | What it does |
-|---|---|
-| **Scan & Generate Plan** | Fingerprints the repo and writes a dependency-ordered `.runbook.json` |
-| **Start Project** | Runs each step in order, waiting for health checks |
-| **Stop Project** | Tears down tracked processes in reverse order |
-| **View Logs** / **Edit Runbook** | Inspect logs or correct a command/health check by hand |
-
-Agents (Copilot Chat, Claude Code, etc.) can call the Language Model Tool `project_autostart_run` with `scan`, `start`, `stop`, or `status`.
+- Compose services with a container `healthcheck` but no published host port fall back to a grace wait — the host cannot probe the container healthcheck directly.
+- Monorepo subdirectory scoping is supported in the scanner API; the sidebar still scans the workspace root by default.
+- If detection is wrong, fix `.runbook.json` via **Edit Runbook** (manual fields are preserved on re-scan).
 
 ## How it’s built
 

@@ -11,3 +11,4 @@ AGENTS.md
 generate.py
 .cursor/
 .agents/
+.local/
