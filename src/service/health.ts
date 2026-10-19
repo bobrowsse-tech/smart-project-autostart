@@ -31,7 +31,9 @@ function checkHttp(target: string, timeoutMs: number): Promise<boolean> {
     const lib = target.startsWith('https') ? https : http;
     const req = lib.get(target, { timeout: timeoutMs }, (res) => {
       res.resume();
-      resolve((res.statusCode ?? 500) < 500);
+      // DIRECTIVE: HTTP health means a successful response (2xx), not merely "not 5xx".
+      const code = res.statusCode ?? 0;
+      resolve(code >= 200 && code < 300);
     });
     req.on('timeout', () => {
       req.destroy();
@@ -50,14 +52,18 @@ export async function waitForHealth(
   const started = Date.now();
 
   if (!health) {
-    opts.onTick?.('No health check declared — waiting fixed grace period (3s).');
+    opts.onTick?.(
+      'No health check declared — waiting fixed grace period (3s). Service may not be ready yet.'
+    );
     await sleep(3000);
     return { ok: true, detail: 'grace period (no health check)' };
   }
 
   if (health.type === 'grace') {
     const ms = Number(health.target) || 3000;
-    opts.onTick?.(`No port/HTTP health check — waiting ${ms}ms grace period.`);
+    opts.onTick?.(
+      `No tcp/http probe available (compose healthcheck without a published host port, or no port detected) — waiting ${ms}ms grace. Do not treat this as a readiness check.`
+    );
     await sleep(ms);
     return { ok: true, detail: `grace ${ms}ms` };
   }

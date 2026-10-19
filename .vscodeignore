@@ -8,6 +8,11 @@ esbuild.js
 **/.eslintrc.json
 generate.py
 DIRECTIVE.md
+AGENTS.md
+.local/**
+.cursor/**
+.agents/**
+.github/**
 node_modules/**
 **/*.vsix
 src/test/**

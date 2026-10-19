@@ -108,7 +108,9 @@ function fingerprintPackageJson(
     return;
   }
   const scripts = pkg.scripts ?? {};
-  const scriptName = scripts.dev ? 'dev' : scripts.start ? 'start' : undefined;
+  const scriptName = (['dev', 'start', 'serve'] as const).find(
+    (name) => typeof scripts[name] === 'string'
+  );
   if (!scriptName) {
     return;
   }
@@ -116,16 +118,27 @@ function fingerprintPackageJson(
   const rel = path.relative(root, cwd) || '.';
   const idBase = pkg.name?.replace(/[@/]/g, '-') || path.basename(cwd) || 'node-app';
   const id = `npm:${idBase}`;
+  const pm = detectPackageManager(cwd);
   candidates.push({
     id,
     kind: 'npm',
-    command: `npm run ${scriptName}`,
+    command: `${pm} run ${scriptName}`,
     cwd: rel,
     ports: [],
     dependsOn: [],
     healthCheck: graceHealth(),
     envHints: pkg.engines,
   });
+}
+
+function detectPackageManager(dir: string): 'pnpm' | 'yarn' | 'npm' {
+  if (fs.existsSync(path.join(dir, 'pnpm-lock.yaml'))) {
+    return 'pnpm';
+  }
+  if (fs.existsSync(path.join(dir, 'yarn.lock'))) {
+    return 'yarn';
+  }
+  return 'npm';
 }
 
 function fingerprintCompose(
@@ -166,8 +179,11 @@ function fingerprintCompose(
     }
     let healthCheck: HealthCheck | undefined;
     if (ports.length) {
+      // DB-class ports: tcp only. App ports: http probe for 2xx.
       healthCheck = DB_PORTS.has(ports[0]) ? tcpHealth(ports[0]) : httpHealth(ports[0]);
     } else if (svc.healthcheck) {
+      // Compose declares a container healthcheck but no published host port —
+      // we cannot probe from the host, so fall back to an explicit grace wait.
       healthCheck = graceHealth(5000);
     } else {
       healthCheck = graceHealth();
